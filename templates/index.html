@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biometric & Gesture Locker System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0a0a0f;
+            --bg-surface: rgba(18, 18, 29, 0.7);
+            --bg-card: rgba(26, 26, 42, 0.45);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(110, 68, 255, 0.35);
+            --accent-primary: #6e44ff;
+            --accent-glow: rgba(110, 68, 255, 0.4);
+            --text-primary: #f3f3f6;
+            --text-secondary: #a0a0b0;
+            --text-muted: #62627a;
+            --success: #00ff87;
+            --success-glow: rgba(0, 255, 135, 0.35);
+            --error: #ff4a5a;
+            --error-glow: rgba(255, 74, 90, 0.35);
+            --warning: #ffd369;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(110, 68, 255, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(0, 255, 135, 0.06) 0%, transparent 40%);
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+            margin-top: 10px;
+        }
+
+        header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 30%, #a090ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 300;
+        }
+
+        /* Container */
+        .container {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Glass Card Base */
+        .glass-card {
+            background: var(--bg-surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(110, 68, 255, 0.2);
+        }
+
+        /* Tab Switcher */
+        .tab-switcher {
+            display: flex;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 500;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab-btn.active {
+            background: var(--accent-primary);
+            color: white;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        /* Feed Viewer */
+        .viewport-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 2px solid var(--border-color);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        .viewport-wrapper.active-drawing {
+            border-color: var(--error);
+            box-shadow: 0 0 15px var(--error-glow);
+        }
+
+        #camera-video {
+            display: none;
+        }
+
+        #processed-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror camera */
+        }
+
+        .viewport-status-bar {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            background: rgba(10, 10, 15, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            font-weight: 400;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-primary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            box-shadow: 0 0 8px var(--text-muted);
+        }
+
+        .status-dot.active {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success-glow);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Action Buttons */
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .action-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 15px 20px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            outline: none;
+        }
+
+        .action-btn:hover:not(:disabled) {
+            background: rgba(110, 68, 255, 0.1);
+            border-color: var(--border-hover);
+            transform: translateY(-1px);
+        }
+
+        .action-btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .action-btn.primary {
+            background: var(--accent-primary);
+            border-color: transparent;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        .action-btn.primary:hover:not(:disabled) {
+            background: #5b32e6;
+            box-shadow: 0 6px 20px var(--accent-glow);
+        }
+
+        .action-btn.success {
+            background: var(--success);
+            color: #05140b;
+            border-color: transparent;
+            box-shadow: 0 4px 15px var(--success-glow);
+        }
+
+        .action-btn.success:hover:not(:disabled) {
+            background: #00e676;
+            box-shadow: 0 6px 20px var(--success-glow);
+        }
+
+        /* Progress Steps Checklist */
+        .checklist {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .check-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .check-item.completed {
+            border-color: rgba(0, 255, 135, 0.2);
+            background: rgba(0, 255, 135, 0.03);
+        }
+
+        .check-item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .check-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .check-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .check-badge {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            transition: all 0.3s;
+        }
+
+        .check-item.completed .check-badge {
+            background: var(--success);
+            border-color: transparent;
+            color: #05140b;
+        }
+
+        /* Toast Messages */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+            pointer-events: none;
+            align-items: center;
+        }
+
+        .toast {
+            width: 100%;
+            max-width: 400px;
+            background: rgba(18, 18, 29, 0.9);
+            border: 1px solid var(--border-color);
+            padding: 16px 20px;
+            border-radius: 16px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--error);
+        }
+
+        .toast.info {
+            border-left: 4px solid var(--accent-primary);
+        }
+
+        /* PIN Pad Modal */
+        .pin-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(5, 5, 8, 0.85);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 999;
+        }
+
+        .pin-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .pin-card {
+            width: 100%;
+            max-width: 340px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+
+        .pin-display {
+            width: 100%;
+            height: 56px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            letter-spacing: 6px;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .pin-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            width: 100%;
+        }
+
+        .pin-btn {
+            aspect-ratio: 1;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-size: 1.3rem;
+            font-weight: 500;
+            border-radius: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .pin-btn:hover {
+            border-color: var(--border-hover);
+            background: rgba(110, 68, 255, 0.15);
+        }
+
+        .pin-btn:active {
+            transform: scale(0.95);
+        }
+
+        .pin-btn.backspace {
+            color: var(--error);
+        }
+
+        .pin-btn.submit {
+            color: var(--success);
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.6; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Tab panels */
+        .tab-panel {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .tab-panel.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Locker Result overlay */
+        .overlay-success {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #00ff87;
+            z-index: 1001;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 15px;
+            color: #000;
+            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100vh); }
+            to { transform: translateY(0); }
+        }
+
+        .overlay-success h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .overlay-success p {
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+
+        .overlay-close-btn {
+            margin-top: 20px;
+            background: #000;
+            color: #00ff87;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Smart Gesture Locker</h1>
+        <p>Face Recognition & Hand Gesture Authenticator</p>
+    </header>
+
+    <div class="container">
+        <!-- Tab Controls -->
+        <div class="tab-switcher">
+            <button class="tab-btn active" onclick="switchTab('login')">Locker Login</button>
+            <button class="tab-btn" onclick="switchTab('register')">Register Setup</button>
+        </div>
+
+        <!-- Camera Section -->
+        <div class="glass-card">
+            <div class="viewport-wrapper" id="viewport">
+                <video id="camera-video" autoplay playsinline></video>
+                <img id="processed-feed" alt="Webcam Feed">
+                <div class="viewport-status-bar">
+                    <div class="status-indicator">
+                        <div class="status-dot active"></div>
+                        <span id="detection-msg">Connecting to camera...</span>
+                    </div>
+                    <span id="fps-display" style="color: var(--text-muted);">-- FPS</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 1: LOGIN -->
+        <div id="panel-login" class="tab-panel active">
+            <!-- Progress Check List -->
+            <div class="glass-card">
+                <div class="checklist">
+                    <div class="check-item" id="chk-login-face">
+                        <div class="check-item-info">
+                            <span class="check-title">Step 1: Face Scan</span>
+                            <span class="check-desc">Verify owner representation</span>
+                        </div>
+                        <div class="check-badge">1</div>
+                    </div>
+                    <div class="check-item" id="chk-login-static">
+                        <div class="check-item-info">
+                            <span class="check-title">Step 2: Static Gestures</span>
+                            <span class="check-desc" id="lbl-login-static-step">Show 3 gestures in order</span>
+                        </div>
+                        <div class="check-badge">2</div>
+                    </div>
+                    <div class="check-item" id="chk-login-dynamic">
+                        <div class="check-item-info">
+                            <span class="check-title">Step 3: Pattern Unlock</span>
+                            <span class="check-desc">Draw dynamic path</span>
+                        </div>
+                        <div class="check-badge">3</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contextual Controls -->
+            <div class="glass-card">
+                <div class="btn-group">
+                    <button class="action-btn primary" id="btn-login-face" onclick="verifyFace()">
+                        Verify Face
+                    </button>
+                    
+                    <button class="action-btn primary" id="btn-login-static" onclick="verifyStaticGesture()">
+                        Verify Static Gesture
+                    </button>
+
+                    <!-- Drawing Sub-Controls -->
+                    <div class="btn-row" id="row-login-draw" style="display: none;">
+                        <button class="action-btn" onclick="startDrawing('draw_login')">Start Draw</button>
+                        <button class="action-btn success" onclick="stopDrawing('verify_dynamic_stop')">Verify Pattern</button>
+                    </div>
+                    
+                    <button class="action-btn primary" id="btn-login-dynamic-trigger" onclick="prepareDrawingUI('login')">
+                        Draw Pattern
+                    </button>
+
+                    <button class="action-btn success" id="btn-login-pin" onclick="openPinModal('login')" style="margin-top: 10px;">
+                        Enter PIN & Open
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: REGISTER -->
+        <div id="panel-register" class="tab-panel">
+            <!-- Progress Check List -->
+            <div class="glass-card">
+                <div class="checklist">
+                    <div class="check-item" id="chk-reg-face">
+                        <div class="check-item-info">
+                            <span class="check-title">Step 1: Face Registration</span>
+                            <span class="check-desc">Analyze facial dimensions</span>
+                        </div>
+                        <div class="check-badge">1</div>
+                    </div>
+                    <div class="check-item" id="chk-reg-static">
+                        <div class="check-item-info">
+                            <span class="check-title">Step 2: Static Gestures</span>
+                            <span class="check-desc" id="lbl-reg-static-progress">Register 3 patterns (0/3)</span>
+                        </div>
+                        <div class="check-badge">2</div>
+                    </div>
+                    <div class="check-item" id="chk-reg-dynamic">
+                        <div class="check-item-info">
+                            <span class="check-title">Step 3: Pattern Registration</span>
+                            <span class="check-desc">Define dynamic unlock path</span>
+                        </div>
+                        <div class="check-badge">3</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contextual Controls -->
+            <div class="glass-card">
+                <div class="btn-group">
+                    <button class="action-btn primary" id="btn-reg-face" onclick="registerFace()">
+                        Capture Face
+                    </button>
+
+                    <button class="action-btn primary" id="btn-reg-static" onclick="registerStaticGesture()">
+                        Capture Static Gesture (0/3)
+                    </button>
+
+                    <!-- Drawing Sub-Controls -->
+                    <div class="btn-row" id="row-reg-draw" style="display: none;">
+                        <button class="action-btn" onclick="startDrawing('draw_register')">Start Draw</button>
+                        <button class="action-btn success" onclick="stopDrawing('register_dynamic_stop')">Save Pattern</button>
+                    </div>
+
+                    <button class="action-btn primary" id="btn-reg-dynamic-trigger" onclick="prepareDrawingUI('register')">
+                        Draw Pattern
+                    </button>
+
+                    <button class="action-btn success" id="btn-reg-save" onclick="openPinModal('register')" style="margin-top: 10px;">
+                        Set PIN & Save Setup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIN Modal -->
+    <div class="pin-modal" id="pin-modal">
+        <div class="pin-card">
+            <h3 style="font-weight: 600; text-align: center; width: 100%;">Enter Locker PIN</h3>
+            <div class="pin-display" id="pin-display"></div>
+            <div class="pin-grid">
+                <button class="pin-btn" onclick="pressPin('1')">1</button>
+                <button class="pin-btn" onclick="pressPin('2')">2</button>
+                <button class="pin-btn" onclick="pressPin('3')">3</button>
+                <button class="pin-btn" onclick="pressPin('4')">4</button>
+                <button class="pin-btn" onclick="pressPin('5')">5</button>
+                <button class="pin-btn" onclick="pressPin('6')">6</button>
+                <button class="pin-btn" onclick="pressPin('7')">7</button>
+                <button class="pin-btn" onclick="pressPin('8')">8</button>
+                <button class="pin-btn" onclick="pressPin('9')">9</button>
+                <button class="pin-btn backspace" onclick="pressPin('C')">C</button>
+                <button class="pin-btn" onclick="pressPin('0')">0</button>
+                <button class="pin-btn submit" onclick="pressPin('OK')">✔</button>
+            </div>
+            <button class="action-btn" style="width: 100%;" onclick="closePinModal()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Unlocked Overlay Success -->
+    <div class="overlay-success" id="unlocked-overlay">
+        <h2>🔓 Locker Opened!</h2>
+        <p>Biometrics and Gesture Authentication verified successfully.</p>
+        <button class="overlay-close-btn" onclick="closeLocker()">Close Locker</button>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        const video = document.getElementById('camera-video');
+        const imgFeed = document.getElementById('processed-feed');
+        const detectionMsg = document.getElementById('detection-msg');
+        const fpsDisplay = document.getElementById('fps-display');
+        const viewport = document.getElementById('viewport');
+        
+        let localStream = null;
+        let captureInterval = null;
+        let currentAction = 'idle'; // 'idle', 'draw_register', 'draw_login'
+        let currentTab = 'login'; // 'login', 'register'
+        
+        let lastFrameTime = Date.now();
+        let frameCount = 0;
+
+        // Registration States
+        let regFaceSaved = false;
+        let regStaticCount = 0;
+        let regDynamicSaved = false;
+
+        // Login States
+        let loginFaceVerified = false;
+        let loginStaticVerified = false;
+        let loginDynamicVerified = false;
+
+        // PIN States
+        let pinMode = 'login'; // 'login' or 'register'
+        let pinValue = '';
+
+        // Initialize Camera
+        async function initCamera() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                });
+                video.srcObject = localStream;
+                detectionMsg.textContent = "Camera online. Connecting stream...";
+                
+                // Wait for video metadata to load to start capture loop
+                video.onloadedmetadata = () => {
+                    startCaptureLoop();
+                };
+            } catch (err) {
+                console.error(err);
+                showToast("Camera Access Denied. Please enable webcam permissions.", "error");
+                detectionMsg.textContent = "Camera connection failed.";
+            }
+        }
+
+        // Start Stream Capture & Sending Loop
+        let sendFrameCount = 0;
+        let lastRenderedFrame = 0;
+        let activeRequests = 0;
+        const MAX_CONCURRENT_REQUESTS = 3;
+
+        function startCaptureLoop() {
+            if (captureInterval) clearInterval(captureInterval);
+
+            updateDbStatus();
+
+            // High frequency non-blocking tick
+            captureInterval = setInterval(async () => {
+                if (activeRequests >= MAX_CONCURRENT_REQUESTS) return;
+                
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    activeRequests++;
+                    const currentFrameIndex = ++sendFrameCount;
+                    
+                    const sendCanvas = document.createElement('canvas');
+                    sendCanvas.width = 320;
+                    sendCanvas.height = 240;
+                    const sendCtx = sendCanvas.getContext('2d');
+                    sendCtx.drawImage(video, 0, 0, sendCanvas.width, sendCanvas.height);
+                    
+                    // Compress JPEG heavily to speed up transmission
+                    const b64Image = sendCanvas.toDataURL('image/jpeg', 0.40);
+
+                    try {
+                        const response = await fetch('/process_frame', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                image: b64Image,
+                                action: currentAction,
+                                frame_index: currentFrameIndex
+                            })
+                        });
+                        const data = await response.json();
+                        
+                        if (data.status === 'success') {
+                            const returnedIndex = data.frame_index || currentFrameIndex;
+                            // Only render if it is newer than what is currently drawn
+                            if (returnedIndex > lastRenderedFrame) {
+                                lastRenderedFrame = returnedIndex;
+                                detectionMsg.textContent = data.message;
+                                imgFeed.src = data.image; // Render returned processed frame
+                                
+                                frameCount++;
+                                const elapsed = Date.now() - lastFrameTime;
+                                if (elapsed >= 1000) {
+                                    const fps = Math.round((frameCount * 1000) / elapsed);
+                                    fpsDisplay.textContent = `${fps} FPS`;
+                                    frameCount = 0;
+                                    lastFrameTime = Date.now();
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Frame processing error: ", err);
+                    } finally {
+                        activeRequests--;
+                    }
+                }
+            }, 60); // Target ~16 FPS throughput
+        }
+
+        // Fetch DB Configuration Status
+        async function updateDbStatus() {
+            try {
+                const response = await fetch('/get_db_status');
+                const data = await response.json();
+                
+                // If not registered, force tab to register
+                if (!data.registered && currentTab === 'login') {
+                    showToast("No user registered. Redirecting to Register tab...", "info");
+                    switchTab('register');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Tab Switch
+        async function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+
+            if (tab === 'login') {
+                document.querySelector('.tab-btn[onclick*="login"]').classList.add('active');
+                document.getElementById('panel-login').classList.add('active');
+            } else {
+                document.querySelector('.tab-btn[onclick*="register"]').classList.add('active');
+                document.getElementById('panel-register').classList.add('active');
+            }
+            
+            // Reset state
+            currentAction = 'idle';
+            viewport.classList.remove('active-drawing');
+            document.getElementById('row-reg-draw').style.display = 'none';
+            document.getElementById('btn-reg-dynamic-trigger').style.display = 'block';
+            document.getElementById('row-login-draw').style.display = 'none';
+            document.getElementById('btn-login-dynamic-trigger').style.display = 'block';
+            
+            // Reset server session states
+            try {
+                await fetch('/reset_session', { method: 'POST' });
+                regStaticCount = 0;
+                document.getElementById('lbl-reg-static-progress').textContent = `Register 3 patterns (0/3)`;
+                document.getElementById('btn-reg-static').textContent = `Capture Static Gesture (0/3)`;
+                document.getElementById('btn-reg-static').disabled = false;
+                regFaceSaved = false;
+                document.getElementById('chk-reg-face').classList.remove('completed');
+                document.getElementById('chk-reg-static').classList.remove('completed');
+                document.getElementById('chk-reg-dynamic').classList.remove('completed');
+            } catch (err) {
+                console.error("Failed to reset session on tab switch:", err);
+            }
+        }
+
+        // Discrete Actions - Register Page
+        async function registerFace() {
+            const b64 = getCanvasSnapshot();
+            showToast("Analyzing face...", "info");
+            
+            try {
+                const response = await fetch('/register_face', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: b64 })
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    regFaceSaved = true;
+                    document.getElementById('chk-reg-face').classList.add('completed');
+                    showToast(data.message, "success");
+                } else {
+                    showToast(data.message, "error");
+                }
+            } catch (err) {
+                showToast("Face registration request failed.", "error");
+            }
+        }
+
+        async function registerStaticGesture() {
+            const b64 = getCanvasSnapshot();
+            showToast("Registering static gesture...", "info");
+            
+            try {
+                const response = await fetch('/register_static', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: b64 })
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    regStaticCount = data.count;
+                    document.getElementById('lbl-reg-static-progress').textContent = `Register 3 patterns (${regStaticCount}/3)`;
+                    document.getElementById('btn-reg-static').textContent = `Capture Static Gesture (${regStaticCount}/3)`;
+                    showToast(data.message, "success");
+
+                    if (regStaticCount === 3) {
+                        document.getElementById('chk-reg-static').classList.add('completed');
+                        document.getElementById('btn-reg-static').disabled = true;
+                        showToast("All static gestures registered successfully!", "success");
+                    }
+                } else {
+                    showToast(data.message, "error");
+                }
+            } catch (err) {
+                showToast("Static gesture request failed.", "error");
+            }
+        }
+
+        // Drawing Handlers
+        function prepareDrawingUI(mode) {
+            viewport.classList.add('active-drawing');
+            if (mode === 'register') {
+                document.getElementById('btn-reg-dynamic-trigger').style.display = 'none';
+                document.getElementById('row-reg-draw').style.display = 'grid';
+            } else {
+                document.getElementById('btn-login-dynamic-trigger').style.display = 'none';
+                document.getElementById('row-login-draw').style.display = 'grid';
+            }
+            showToast("Dynamic gesture menu ready. Click 'Start Draw' to begin.", "info");
+        }
+
+        async function startDrawing(action) {
+            currentAction = action; // 'draw_register' or 'draw_login'
+            const endpoint = action === 'draw_register' ? '/register_dynamic_start' : '/verify_dynamic_start';
+            
+            try {
+                const response = await fetch(endpoint, { method: 'POST' });
+                const data = await response.json();
+                showToast(data.message, "info");
+            } catch (err) {
+                showToast("Failed to initialize drawing session.", "error");
+            }
+        }
+
+        async function stopDrawing(endpoint) {
+            currentAction = 'idle';
+            viewport.classList.remove('active-drawing');
+            
+            showToast("Saving drawing data...", "info");
+            
+            try {
+                const response = await fetch('/' + endpoint, { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showToast(data.message, "success");
+                    if (endpoint === 'register_dynamic_stop') {
+                        regDynamicSaved = true;
+                        document.getElementById('chk-reg-dynamic').classList.add('completed');
+                        document.getElementById('row-reg-draw').style.display = 'none';
+                        document.getElementById('btn-reg-dynamic-trigger').style.display = 'block';
+                    } else {
+                        loginDynamicVerified = true;
+                        document.getElementById('chk-login-dynamic').classList.add('completed');
+                        document.getElementById('row-login-draw').style.display = 'none';
+                        document.getElementById('btn-login-dynamic-trigger').style.display = 'block';
+                    }
+                } else {
+                    showToast(data.message, "error");
+                    // Reset UI
+                    if (endpoint === 'register_dynamic_stop') {
+                        document.getElementById('row-reg-draw').style.display = 'none';
+                        document.getElementById('btn-reg-dynamic-trigger').style.display = 'block';
+                    } else {
+                        document.getElementById('row-login-draw').style.display = 'none';
+                        document.getElementById('btn-login-dynamic-trigger').style.display = 'block';
+                    }
+                }
+            } catch (err) {
+                showToast("Request to complete drawing failed.", "error");
+            }
+        }
+
+        // Discrete Actions - Login Page
+        async function verifyFace() {
+            const b64 = getCanvasSnapshot();
+            showToast("Verifying face...", "info");
+            
+            try {
+                const response = await fetch('/verify_face', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: b64 })
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    loginFaceVerified = true;
+                    document.getElementById('chk-login-face').classList.add('completed');
+                    showToast(data.message, "success");
+                } else {
+                    showToast(data.message, "error");
+                }
+            } catch (err) {
+                showToast("Face verification request failed.", "error");
+            }
+        }
+
+        async function verifyStaticGesture() {
+            const b64 = getCanvasSnapshot();
+            showToast("Verifying static gesture...", "info");
+            
+            try {
+                const response = await fetch('/verify_static', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: b64 })
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    if (data.complete) {
+                        loginStaticVerified = true;
+                        document.getElementById('chk-login-static').classList.add('completed');
+                        document.getElementById('lbl-login-static-step').textContent = "All static gestures verified!";
+                        document.getElementById('btn-login-static').disabled = true;
+                        showToast(data.message, "success");
+                    } else {
+                        document.getElementById('lbl-login-static-step').textContent = `Perform Gesture Step ${data.next_step} of 3`;
+                        showToast(data.message, "success");
+                    }
+                } else {
+                    document.getElementById('lbl-login-static-step').textContent = "Show 3 gestures in order";
+                    showToast(data.message, "error");
+                }
+            } catch (err) {
+                showToast("Static gesture verification request failed.", "error");
+            }
+        }
+
+        // Helper: Capture snapshot of raw video feed to send
+        function getCanvasSnapshot() {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 640;
+            tempCanvas.height = 480;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+            return tempCanvas.toDataURL('image/jpeg', 0.6);
+        }
+
+        // Toast Helper
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            let icon = "💡";
+            if (type === "success") icon = "✔";
+            if (type === "error") icon = "❌";
+            
+            toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 50);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // PIN PAD Modal Operations
+        function openPinModal(mode) {
+            pinMode = mode;
+            pinValue = '';
+            document.getElementById('pin-display').textContent = '';
+            document.getElementById('pin-modal').classList.add('show');
+        }
+
+        function closePinModal() {
+            document.getElementById('pin-modal').classList.remove('show');
+        }
+
+        function pressPin(key) {
+            const display = document.getElementById('pin-display');
+            if (key === 'C') {
+                pinValue = '';
+            } else if (key === 'OK') {
+                submitPin();
+                return;
+            } else {
+                if (pinValue.length < 6) {
+                    pinValue += key;
+                }
+            }
+            display.textContent = '*'.repeat(pinValue.length);
+        }
+
+        async function submitPin() {
+            if (pinValue.length < 4) {
+                showToast("PIN must be 4-6 digits long.", "error");
+                return;
+            }
+
+            closePinModal();
+            showToast("Submitting PIN authentication...", "info");
+
+            if (pinMode === 'register') {
+                // Submit Registration
+                try {
+                    const response = await fetch('/save_registration', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pin: pinValue })
+                    });
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        showToast(data.message, "success");
+                        // Reset local checklists
+                        document.querySelectorAll('.check-item').forEach(el => el.classList.remove('completed'));
+                        document.getElementById('lbl-reg-static-progress').textContent = "Register 3 patterns (0/3)";
+                        document.getElementById('btn-reg-static').textContent = "Capture Static Gesture (0/3)";
+                        document.getElementById('btn-reg-static').disabled = false;
+                        regFaceSaved = false;
+                        regStaticCount = 0;
+                        regDynamicSaved = false;
+                        switchTab('login');
+                    } else {
+                        showToast(data.message, "error");
+                    }
+                } catch (err) {
+                    showToast("Failed to complete registration.", "error");
+                }
+            } else {
+                // Submit Login
+                try {
+                    const response = await fetch('/verify_pin', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pin: pinValue })
+                    });
+                    const data = await response.json();
+                    
+                    if (data.status === 'success' && data.unlocked) {
+                        // Open locker!
+                        document.getElementById('unlocked-overlay').style.display = 'flex';
+                        showToast(data.message, "success");
+                    } else {
+                        showToast(data.message, "error");
+                    }
+                } catch (err) {
+                    showToast("Incorrect PIN or validation steps failed.", "error");
+                }
+            }
+        }
+
+        // Close/Reset Locker view
+        function closeLocker() {
+            document.getElementById('unlocked-overlay').style.display = 'none';
+            // Reset checklist UI
+            document.querySelectorAll('.check-item').forEach(el => el.classList.remove('completed'));
+            document.getElementById('lbl-login-static-step').textContent = "Show 3 gestures in order";
+            document.getElementById('btn-login-static').disabled = false;
+            
+            loginFaceVerified = false;
+            loginStaticVerified = false;
+            loginDynamicVerified = false;
+            
+            // Server-side verification state reset
+            fetch('/reset_session', { method: 'POST' });
+        }
+
+        // Initialize script
+        window.addEventListener('DOMContentLoaded', () => {
+            initCamera();
+            fetch('/reset_session', { method: 'POST' }).catch(err => console.error("Session reset failed:", err));
+        });
+    </script>
+</body>
+</html>
